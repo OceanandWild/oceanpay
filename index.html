@@ -5563,7 +5563,7 @@
         { key: 'wildshorts_vip', name: 'Premium VIP', pid: 'WildShorts', icon: 'fas fa-crown', themeClass: 'sub-wildshorts-premium' },
         { key: 'wildtransfer_relay', name: 'Relay', pid: 'WildTransfer', icon: 'fas fa-paper-plane', themeClass: 'sub-wildtransfer-relay' },
         { key: 'ecoxion_pass', name: 'Ecoxion Pass', pid: 'Ecoxion', icon: 'fas fa-atom', themeClass: 'sub-ecoxion-premium' },
-        { key: 'ocean_cinemas_free', name: 'Corriente Libre', pid: 'Ocean Cinemas', icon: 'fas fa-water', themeClass: 'sub-oceancinemas-free' },
+        // ocean_cinemas_free omitido: el plan gratuito es el estado base, no una suscripcion
         { key: 'ocean_cinemas_abyssal', name: 'Marea Abisal', pid: 'Ocean Cinemas', icon: 'fas fa-wave-square', themeClass: 'sub-oceancinemas-abyssal' }
       ];
       let catalog = fallbackCatalog;
@@ -5661,7 +5661,8 @@
         const activeCatalogKeys = new Set(activeSubs.map((s) => detectCatalogKey(s)).filter(Boolean));
 
         // Reglas por tier: si Elite esta activa, Premium no se muestra como faltante.
-        const hiddenByTier = new Set();
+        // El plan gratuito de Ocean Cinemas nunca aparece en suscripciones (es el estado base).
+        const hiddenByTier = new Set(['ocean_cinemas_free']);
         if (activeCatalogKeys.has('dinobox_elite')) hiddenByTier.add('dinobox_premium');
 
         const unavailableItems = catalog
@@ -5690,7 +5691,13 @@
             'ocean-cinemas': 'Tu experiencia en Ocean Cinemas esta optimizada con beneficios de suscripcion.'
           };
 
-          const items = activeSubs.map((s) => {
+          const items = activeSubs
+            .filter((s) => {
+              // No mostrar el plan gratuito de Ocean Cinemas — es el estado base, no una suscripcion
+              const key = detectCatalogKey(s);
+              return key !== 'ocean_cinemas_free';
+            })
+            .map((s) => {
             const rawName = s.plan_name || s.sub_name || 'Plan';
             const rawPlanId = s.plan_id || s.plan || '';
             const expiry = s.end_date || s.next_payment;
@@ -5739,22 +5746,56 @@
 
           if (heroMount) {
             heroMount.innerHTML = `
-              <div class="subs-floating-copy">${items[0].tagline}</div>
+              <div class="subs-floating-copy">${items[0]?.tagline || ''}</div>
               <button class="subs-nav-btn prev" data-subs-nav="prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
               <div class="subs-carousel-window">
                 <div class="subs-carousel-track">
-                  ${items.map((it) => `
-                    <article class="subs-carousel-card ${it.themeClass}">
-                      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div class="sub-icon" style="width:42px;height:42px;border-radius:11px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#06111f;font-size:1.15rem;"><i class="${it.icon}"></i></div><div class="subs-chip" style="margin:0;"><i class="fas fa-satellite"></i> ${it.pid}</div></div>
-                      <h4>${it.name}</h4>
-                      <p class="subs-money">${it.price} <span>${it.currency}</span></p>
-                      <div class="subs-meta">
-                        <div><small>Renovación</small><strong>${it.renewDate}</strong></div>
-                        <div><small>Vencimiento</small><strong>${it.nextDate}</strong></div>
-                        <div><small>Estado</small><strong class="${it.statusLabel === 'Activa' ? 'ok' : 'off'}">${it.statusLabel}</strong></div>
-                      </div>
-                    </article>
-                  `).join('')}
+                  ${items.map((it) => {
+                    const isOceanCinemas = it.themeClass === 'sub-oceancinemas-abyssal' || it.themeClass === 'sub-oceancinemas-free';
+                    if (isOceanCinemas) {
+                      // Card mejorado para Ocean Cinemas
+                      const isAbyssal = it.themeClass === 'sub-oceancinemas-abyssal';
+                      const planBadge = isAbyssal ? 'ABISAL' : 'FREE';
+                      const planColor = isAbyssal ? '#14b8a6' : '#38bdf8';
+                      const perks = isAbyssal
+                        ? ['50% descuento en todas las películas', 'Fast Pass desbloqueado', 'Recompensas 2x']
+                        : ['Acceso al catálogo base', 'Pre-compra estándar', 'Recompensas diarias'];
+                      return `
+                        <article class="subs-carousel-card ${it.themeClass}" style="position:relative;overflow:hidden;">
+                          <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:${planColor};opacity:0.08;filter:blur(20px);pointer-events:none;"></div>
+                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                              <div class="sub-icon" style="width:38px;height:38px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#06111f;font-size:1rem;flex-shrink:0;"><i class="${it.icon}"></i></div>
+                              <div>
+                                <div style="font-size:0.62rem;color:#7fb8d4;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Ocean Cinemas</div>
+                                <div style="font-size:0.88rem;color:#f2fbff;font-weight:800;line-height:1.1;">${it.name}</div>
+                              </div>
+                            </div>
+                            <span style="font-size:0.6rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:${planColor};border:1px solid ${planColor}44;background:${planColor}18;border-radius:999px;padding:3px 8px;">${planBadge}</span>
+                          </div>
+                          <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px;">
+                            ${perks.map(p => `<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:#b4d8e8;"><i class="fas fa-check" style="color:${planColor};font-size:0.6rem;flex-shrink:0;"></i>${p}</div>`).join('')}
+                          </div>
+                          <div class="subs-meta">
+                            <div><small>Renovación</small><strong>${it.renewDate}</strong></div>
+                            <div><small>Vencimiento</small><strong>${it.nextDate}</strong></div>
+                            <div><small>Estado</small><strong class="${it.statusLabel === 'Activa' ? 'ok' : 'off'}">${it.statusLabel}</strong></div>
+                          </div>
+                        </article>`;
+                    }
+                    // Card estándar para otros proyectos
+                    return `
+                      <article class="subs-carousel-card ${it.themeClass}">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div class="sub-icon" style="width:42px;height:42px;border-radius:11px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#06111f;font-size:1.15rem;"><i class="${it.icon}"></i></div><div class="subs-chip" style="margin:0;"><i class="fas fa-satellite"></i> ${it.pid}</div></div>
+                        <h4>${it.name}</h4>
+                        <p class="subs-money">${it.price} <span>${it.currency}</span></p>
+                        <div class="subs-meta">
+                          <div><small>Renovación</small><strong>${it.renewDate}</strong></div>
+                          <div><small>Vencimiento</small><strong>${it.nextDate}</strong></div>
+                          <div><small>Estado</small><strong class="${it.statusLabel === 'Activa' ? 'ok' : 'off'}">${it.statusLabel}</strong></div>
+                        </div>
+                      </article>`;
+                  }).join('')}
                 </div>
               </div>
               <button class="subs-nav-btn next" data-subs-nav="next" aria-label="Siguiente"><i class="fas fa-chevron-right"></i></button>
@@ -5814,21 +5855,43 @@
                 <p>Incluye planes nunca activados o desactivados por saldo u otras razones.</p>
               </div>
               <div class="subs-unavailable-grid">
-                ${unavailableItems.map((it) => `
-                  <article class="subs-unavailable-card ${it.themeClass}">
-                    <div class="left">
-                      <span class="sub-icon"><i class="${it.icon}"></i></span>
-                      <div>
-                        <h4>${it.name}</h4>
-                        <small>${it.pid}</small>
+                ${unavailableItems.map((it) => {
+                  const isOceanCinemas = it.themeClass === 'sub-oceancinemas-abyssal' || it.themeClass === 'sub-oceancinemas-free';
+                  if (isOceanCinemas) {
+                    const isAbyssal = it.themeClass === 'sub-oceancinemas-abyssal';
+                    const planColor = isAbyssal ? '#14b8a6' : '#38bdf8';
+                    const planBadge = isAbyssal ? 'ABISAL' : 'FREE';
+                    const planDesc = isAbyssal ? '50% desc. · Fast Pass · Recompensas 2x' : 'Catálogo base · Pre-compra estándar';
+                    return `
+                      <article class="subs-unavailable-card ${it.themeClass}" style="position:relative;overflow:hidden;">
+                        <div class="left">
+                          <span class="sub-icon" style="flex-shrink:0;"><i class="${it.icon}"></i></span>
+                          <div>
+                            <h4 style="display:flex;align-items:center;gap:6px;">${it.name} <span style="font-size:0.58rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:${planColor};border:1px solid ${planColor}44;background:${planColor}18;border-radius:999px;padding:2px 6px;">${planBadge}</span></h4>
+                            <small style="color:#7fb8d4;">${it.pid} · ${planDesc}</small>
+                          </div>
+                        </div>
+                        <div class="right">
+                          <span class="badge">${it.badge}</span>
+                          <p>${it.reason}</p>
+                        </div>
+                      </article>`;
+                  }
+                  return `
+                    <article class="subs-unavailable-card ${it.themeClass}">
+                      <div class="left">
+                        <span class="sub-icon"><i class="${it.icon}"></i></span>
+                        <div>
+                          <h4>${it.name}</h4>
+                          <small>${it.pid}</small>
+                        </div>
                       </div>
-                    </div>
-                    <div class="right">
-                      <span class="badge">${it.badge}</span>
-                      <p>${it.reason}</p>
-                    </div>
-                  </article>
-                `).join('')}
+                      <div class="right">
+                        <span class="badge">${it.badge}</span>
+                        <p>${it.reason}</p>
+                      </div>
+                    </article>`;
+                }).join('')}
               </div>
             `;
           }
