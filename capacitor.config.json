@@ -1,1 +1,1 @@
-﻿{ "appId": "com.oceanwildstudios.oceanpay", "appName": "Ocean Pay", "webDir": ".", "server": { "androidScheme": "https" } }
+﻿{ "appId": "com.oceanwildstudios.oceanpay", "appName": "Ocean Pay", "webDir": "www", "server": { "androidScheme": "https" } }
